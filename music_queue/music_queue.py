@@ -18,7 +18,7 @@ def index():
             db.session.commit()
 
     tasks = YTVideo.query.all()
-    return render_template('task_list/index.html', tasks=tasks)
+    return render_template('music_queue/index.html', tasks=tasks)
 
 @bp.route('/<int:id>/delete', methods=('POST',))
 def delete(id):
@@ -26,4 +26,4 @@ def delete(id):
     if task != None:
         db.session.delete(task)
         db.session.commit()
-    return redirect(url_for('task_list.index'))
+    return redirect(url_for('music_queue.index'))

@@ -5,6 +5,7 @@ from flask import (
 from music_queue import db
 from music_queue.constants import *
 from music_queue.models import YTVideo
+from music_queue.oauth import build_credentials, is_logged_in
 
 bp = Blueprint('music_queue', __name__)
 
@@ -23,11 +24,12 @@ def validate_queue():
     return False
 
 def validate_sheet(url):
-    
+    pass
 
 
 def handle_queue_request():
     if session.get(AUTH_TOKEN_KEY):
+        pass
     else:
         return flask.redirect("/google/login", CODE=302)
 
@@ -36,12 +38,13 @@ def index():
     if request.method == 'POST' and validate_queue():
         return flask.redirect("/queue", CODE=302)
 
-    login_state = bool(session.get(AUTH_TOKEN_KEY))
+    login_state = is_logged_in()
     return render_template('music_queue/index.html', login_state=login_state)
 
 @bp.route('/queue', methods=('GET', 'POST'))
 def music_queue():
-    if request.method == "POST"
+    if request.method == "POST":
+        pass
         # handle JSON request
     return render_template('music_queue/queue.html', show_total=session['show_total'], length=session['length'])
 

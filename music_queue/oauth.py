@@ -1,5 +1,6 @@
-import os
 import flask
+import json
+import os
 import requests
 
 import google.oauth2.credentials
@@ -12,8 +13,8 @@ API_SERVICE_NAME = 'sheets'
 API_VERSION = 'v2'
 
 
-  drive = googleapiclient.discovery.build(
-      API_SERVICE_NAME, API_VERSION, credentials=credentials)
+  # drive = googleapiclient.discovery.build(
+  #     API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
 app = flask.Blueprint('google_auth', __name__)
 
@@ -37,15 +38,16 @@ def build_credentials():
 
 @app.route('/google/login')
 def login():
-    google_config = json.loads(GOOGLE_CONFIG)
+    google_config = json.loads(GOOGLE_OAUTH_CONFIG)
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         google_config,
         scopes=AUTHORIZATION_SCOPE)
+
+    flow.redirect_uri = flask.url_for('.google_auth_redirect', _external=True)
+
     authorization_url, state = flow.authorization_url(
                             access_type='offline',
                             include_granted_scopes='true')
-
-    flow.redirect_uri = flask.url_for('/google/auth', _external=True)
 
     flask.session['state'] = state
 
@@ -53,13 +55,15 @@ def login():
 
 @app.route('/google/auth')
 def google_auth_redirect():
-    google_config = json.loads(GOOGLE_CONFIG)
+    google_config = json.loads(GOOGLE_OAUTH_CONFIG)
+
     state = flask.session['state']
+
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         google_config,
         scopes=AUTHORIZATION_SCOPE,
         state=state)
-    flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
+    flow.redirect_uri = flask.url_for('.google_auth_redirect', _external=True)
 
     authorization_response = flask.request.url
     flow.fetch_token(authorization_response=authorization_response)

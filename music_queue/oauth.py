@@ -1,91 +1,96 @@
-import functools
+import os
 import flask
+import requests
 
-from authlib.integrations.requests_client import OAuth2Session
 import google.oauth2.credentials
+import google_auth_oauthlib.flow
 import googleapiclient.discovery
 
 from music_queue.constants import *
 
+API_SERVICE_NAME = 'sheets'
+API_VERSION = 'v2'
+
+
+  drive = googleapiclient.discovery.build(
+      API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
 app = flask.Blueprint('google_auth', __name__)
 
 def is_logged_in():
-    return True if AUTH_TOKEN_KEY in flask.session else False
+    return "credentials" in flask.session
+
+def credentials_to_dict(credentials):
+    return {'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': credentials.scopes}
 
 def build_credentials():
     if not is_logged_in():
         raise Exception('User must be logged in')
 
-    oauth2_tokens = flask.session[AUTH_TOKEN_KEY]
-
     return google.oauth2.credentials.Credentials(
-                oauth2_tokens['access_token'],
-                refresh_token=oauth2_tokens['refresh_token'],
-                client_id=CLIENT_ID,
-                client_secret=CLIENT_SECRET,
-                token_uri=ACCESS_TOKEN_URI)
-
-def get_user_info():
-    credentials = build_credentials()
-
-    oauth2_client = googleapiclient.discovery.build(
-                        'oauth2', 'v2',
-                        credentials=credentials)
-
-    return oauth2_client.userinfo().get().execute()
-
-def no_cache(view):
-    @functools.wraps(view)
-    def no_cache_impl(*args, **kwargs):
-        response = flask.make_response(view(*args, **kwargs))
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '-1'
-        return response
-
-    return functools.update_wrapper(no_cache_impl, view)
+        **flask.session['credentials'])
 
 @app.route('/google/login')
-@no_cache
 def login():
-    session = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
-                            scope=AUTHORIZATION_SCOPE,
-                            redirect_uri=AUTH_REDIRECT_URI)
+    google_config = json.loads(GOOGLE_CONFIG)
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(
+        google_config,
+        scopes=AUTHORIZATION_SCOPE)
+    authorization_url, state = flow.authorization_url(
+                            access_type='offline',
+                            include_granted_scopes='true')
 
-    uri, state = session.create_authorization_url(AUTHORIZATION_URL)
+    flow.redirect_uri = flask.url_for('/google/auth', _external=True)
 
-    flask.session[AUTH_STATE_KEY] = state
-    flask.session.permanent = True
+    flask.session['state'] = state
 
-    return flask.redirect(uri, code=302)
+    return flask.redirect(authorization_url, code=302)
 
 @app.route('/google/auth')
-@no_cache
 def google_auth_redirect():
-    req_state = flask.request.args.get('state', default=None, type=None)
+    google_config = json.loads(GOOGLE_CONFIG)
+    state = flask.session['state']
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(
+        google_config,
+        scopes=AUTHORIZATION_SCOPE,
+        state=state)
+    flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
 
-    if req_state != flask.session[AUTH_STATE_KEY]:
-        response = flask.make_response('Invalid state parameter', 401)
-        return response
+    authorization_response = flask.request.url
+    flow.fetch_token(authorization_response=authorization_response)
 
-    session = OAuth2Session(CLIENT_ID, CLIENT_SECRET,
-                            scope=AUTHORIZATION_SCOPE,
-                            state=flask.session[AUTH_STATE_KEY],
-                            redirect_uri=AUTH_REDIRECT_URI)
+    credentials = flow.credentials
+    flask.session['credentials'] = credentials_to_dict(credentials)
 
-    oauth2_tokens = session.fetch_access_token(
-                        ACCESS_TOKEN_URI,
-                        authorization_response=flask.request.url)
-
-    flask.session[AUTH_TOKEN_KEY] = oauth2_tokens
-
-    return flask.redirect(BASE_URI, code=302)
+    return flask.redirect("/", code=302)
 
 @app.route('/google/logout')
-@no_cache
 def logout():
-    flask.session.pop(AUTH_TOKEN_KEY, None)
-    flask.session.pop(AUTH_STATE_KEY, None)
+    if 'credentials' in flask.session:
+        del flask.session['credentials']
 
     return flask.redirect(BASE_URI, code=302)
+
+@app.route('/google/revoke')
+def revoke():
+  if 'credentials' not in flask.session:
+    return ('You need to <a href="/authorize">authorize</a> before ' +
+            'testing the code to revoke credentials.')
+
+  credentials = google.oauth2.credentials.Credentials(
+    **flask.session['credentials'])
+
+  revoke = requests.post('https://oauth2.googleapis.com/revoke',
+      params={'token': credentials.token },
+      headers = {'content-type': 'application/x-www-form-urlencoded'})
+
+  status_code = getattr(revoke, 'status_code')
+  if status_code == 200:
+    return('Credentials successfully revoked.' + print_index_table())
+  else:
+    return('An error occurred.' + print_index_table())

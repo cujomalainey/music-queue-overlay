@@ -23,7 +23,6 @@ itsdangerous==1.1.0
 Jinja2==2.11.2
 Mako==1.1.3
 MarkupSafe==1.1.1
-oauthlib==3.1.0
 protobuf==3.12.2
 psycopg2==2.8.5
 pyasn1==0.4.8
@@ -34,7 +33,6 @@ python-dotenv==0.14.0
 python-editor==1.0.4
 pytz==2020.1
 requests==2.24.0
-requests-oauthlib==1.3.0
 rsa==4.6
 six==1.15.0
 SQLAlchemy==1.3.18

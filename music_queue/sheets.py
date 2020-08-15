@@ -11,7 +11,7 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 SAMPLE_SPREADSHEET_ID = '1DH9NA7ln9UVvGZq3IIWcVdxru2k9dUVhvHNTZKlf1xU'
 SAMPLE_RANGE_NAME = 'A2:D'
 
-def main():
+def get_sheet(id):
     """Shows basic usage of the Sheets API.
     Prints values from a sample spreadsheet.
     """

@@ -15,7 +15,7 @@ def validate_queue():
     if not length:
         flash('Queue length is required.')
         return False
-    if not session.get(AUTH_TOKEN_KEY):
+    if not is_logged_in():
         flash('Google sheets access required')
         return False
     if sheet:
@@ -26,23 +26,22 @@ def validate_queue():
 def validate_sheet(url):
     pass
 
-
-def handle_queue_request():
-    if session.get(AUTH_TOKEN_KEY):
-        pass
-    else:
-        return flask.redirect("/google/login", CODE=302)
+def register_queue():
+    pass
 
 @bp.route('/', methods=('GET', 'POST'))
 def index():
     if request.method == 'POST' and validate_queue():
-        return flask.redirect("/queue", CODE=302)
+        register_queue()
+        return flask.redirect(url_for(".music_queue"), CODE=302)
 
     login_state = is_logged_in()
     return render_template('music_queue/index.html', login_state=login_state)
 
 @bp.route('/queue', methods=('GET', 'POST'))
 def music_queue():
+    if not session['active']:
+        return redirect()
     if request.method == "POST":
         pass
         # handle JSON request

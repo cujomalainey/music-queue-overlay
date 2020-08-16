@@ -10,13 +10,6 @@ import googleapiclient.discovery
 from music_queue.constants import *
 from flask import url_for, session, redirect, Blueprint
 
-API_SERVICE_NAME = 'sheets'
-API_VERSION = 'v2'
-
-
-  # drive = googleapiclient.discovery.build(
-  #     API_SERVICE_NAME, API_VERSION, credentials=credentials)
-
 app = Blueprint('google_auth', __name__)
 
 def is_logged_in():

@@ -1,6 +1,7 @@
 from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for, session
+    Blueprint, flash, redirect, render_template, request, url_for, session, jsonify
 )
+from urllib.parse import urlparse
 
 from music_queue import db
 from music_queue.constants import *
@@ -27,10 +28,26 @@ def validate_queue():
     return False
 
 def validate_sheet(url):
+    o = urlparse(url)
+    if o.hostname != "docs.google.com":
+        flash('Not a google drive url')
+        return False
+    s = o.path.strip("/").split("/")
+    if len(s) < 3:
+        flash('Not a link to a sheet')
+        return False
+    if s[0] != "spreadsheets":
+        flash('Not a sheets link')
+        return False
+    # TODO perform API test
     return True
 
 def register_queue():
-    pass
+    o = urlparse(request.form['sheet'])
+    s = o.path.strip("/").split("/")
+    session['sheet'] = s[2]
+    session['length'] = int(request.form['length']) if request.form['length'] else 0
+    session['show_total'] = 'show_total' in request.form
 
 @bp.route('/', methods=('GET', 'POST'))
 def index():
@@ -41,15 +58,19 @@ def index():
     login_state = is_logged_in()
     return render_template('music_queue/index.html', login_state=login_state)
 
-@bp.route('/queue', methods=('GET', 'POST'))
+@bp.route('/queue', methods=('GET',))
 def music_queue():
-    if not session['active']:
-        return redirect()
-    if request.method == "POST":
-        pass
-        # handle JSON request
+    if 'sheet' not in session:
+        return redirect(url_for('.index'))
+
     return render_template('music_queue/queue.html', show_total=session['show_total'], length=session['length'])
 
+@bp.route('/data', methods=('GET',))
+def queue_data():
+    if 'sheet' not in session:
+        return redirect(url_for('.index'))
+
+    return jsonify({"name":"test"})
 
     # task = YTVideo.query.get(id)
     # if task != None:

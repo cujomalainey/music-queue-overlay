@@ -1,5 +1,5 @@
 function update_queue() {
-  $.getJSON( "ajax/test.json", function( data ) {
+  $.getJSON( "/data", function( data ) {
     console.log(data);
   });
 }

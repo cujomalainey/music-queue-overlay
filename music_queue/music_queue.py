@@ -2,6 +2,8 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for, session, jsonify
 )
 from urllib.parse import urlparse
+from random import random
+from googleapiclient.discovery import build
 
 from music_queue import db
 from music_queue.constants import *
@@ -9,10 +11,8 @@ from music_queue.models import YTVideo
 from music_queue.oauth import build_credentials, is_logged_in
 
 API_SERVICE_NAME = 'sheets'
-API_VERSION = 'v2'
+API_VERSION = 'v4'
 
-# drive = googleapiclient.discovery.build(
-#     API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
 bp = Blueprint('music_queue', __name__)
 
@@ -69,8 +69,15 @@ def music_queue():
 def queue_data():
     if 'sheet' not in session:
         return redirect(url_for('.index'))
-
-    return jsonify({"name":"test"})
+    service = build(API_SERVICE_NAME, API_VERSION, credentials=build_credentials())
+    sheets = service.spreadsheets()
+    result = sheets.values().get(spreadsheetId=session['sheet'],
+                                 range='B2:B').execute()
+    values = result.get('values', [])
+    return jsonify({"show_total":session['show_total'],
+                    "total_queue_size":200,
+                    "display_limit":8,
+                    "queue":values})
 
     # task = YTVideo.query.get(id)
     # if task != None:

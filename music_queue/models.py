@@ -2,7 +2,6 @@ from music_queue import db
 
 class YTVideo(db.Model):
     id = db.Column(db.String(100), primary_key=True)
-    found = db.Column(db.Boolean)
     found_at = db.Column(db.DateTime)
     pickle = db.Column(db.PickleType(), nullable=True)
 

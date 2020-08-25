@@ -1,9 +1,12 @@
 from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for, session, jsonify
+    Blueprint, flash, redirect, render_template, request, url_for, session, jsonify, current_app
 )
+
+from googleapiclient.errors import HttpError
 from urllib.parse import urlparse, parse_qs
 from random import random
 from googleapiclient.discovery import build
+from datetime import datetime, timedelta
 
 from music_queue import db
 from music_queue.constants import *
@@ -101,14 +104,23 @@ def parse_links(values):
         if vid_id is None:
             print("bad parse")
             # return placeholder continue
+            results.append(bad_placeholder())
             continue
 
         # check db for cache
         video = YTVideo.query.get(vid_id)
+        yesterday_this_time = datetime.now() - timedelta(days=1)
         if video is not None:
-            print("cache hit")
             # found in cache, add to list and continue
-            continue
+            if video.pickle:
+                print("cache hit")
+                continue
+            elif video.found_at >= yesterday_this_time:
+                print("empty hit")
+                continue
+            print("cache stale")
+
+
 
         # not found in cache, query api
         vid_info = fetch_video_api(vid_id)
@@ -121,73 +133,81 @@ def parse_links(values):
             # add to db as unknown and return placeholder
             pass
 
-        cache_result(video_id, result)
+        cache_result(vid_id, vid_info)
+        results.append(vid_info)
 
     return results
 
+def bad_placeholder():
+    return {"title": "this is not the video you are looking for"}
 
 def parse_url(url):
-  # if not youtube then return domain
-  domain = get_domain(url)
-  if domain not in YOUTUBE_DOMAINS:
-    return None
+    # if not youtube then return domain
+    domain = get_domain(url)
+    if domain not in YOUTUBE_DOMAINS:
+        return None
 
-  # parse out id
-  if domain == 'youtu.be':
-    # parse out last segment
-    video_id = get_last_segment(url)
-  else:
-    # parse out get var
-    video_id = get_var_from_url(url)
-  return video_id
+    # parse out id
+    if domain == 'youtu.be':
+        # parse out last segment
+        video_id = get_last_segment(url)
+    else:
+        # parse out get var
+        video_id = get_var_from_url(url)
+    return video_id
 
 
 def fetch_video_api(vid_id):
-  try:
-    result = youtube_search(video_id)
-  except HttpError as e:
-    app.logger.error('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
-
-  return result
+    try:
+        return youtube_search(vid_id)
+    except HttpError as e:
+        print('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content))
+        return None
 
 
 def cache_result(video_id, result):
-  pass
+    entry = YTVideo()
+    entry.id = video_id
+    entry.found_at = datetime.now()
+    entry.pickle = result
+    db.session.add(entry)
+    db.session.commit()
 
 
 def get_domain(url):
-  return urlparse(url).netloc
+    return urlparse(url).netloc
 
 
 def get_last_segment(url):
-  p = urlparse(url)
-  return p.path.rsplit("/", 1)[-1]
+    p = urlparse(url)
+    return p.path.rsplit("/", 1)[-1]
 
 
 def get_var_from_url(url):
-  parsed = urlparse(url)
-  result = parse_qs(parsed.query)
-  if 'v' in result:
-    return result['v'][0]
-  else:
+    parsed = urlparse(url)
+    result = parse_qs(parsed.query)
+    if 'v' in result:
+        return result['v'][0]
+    else:
+        return None
+
+
+def youtube_search(vid_id):
+    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
+        developerKey=YOUTUBE_DEVELOPER_KEY)
+
+    # Call the search.list method to retrieve results matching the specified
+    # query term.
+    search_response = youtube.search().list(
+        q=vid_id,
+        part='id,snippet',
+        type="video",
+        maxResults=20,
+    ).execute()
+
+    # Add each result to the appropriate list, and then display the lists of
+    # matching videos, channels, and playlists.
+    for search_result in search_response.get('items', []):
+        if search_result['id']['videoId'] == vid_id:
+            return search_result['snippet']
     return None
-
-
-def youtube_search(id):
-  youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-    developerKey=YOUTUBE_DEVELOPER_KEY)
-
-  # Call the search.list method to retrieve results matching the specified
-  # query term.
-  search_response = youtube.search().list(
-    q=options.q,
-    part='id,snippet',
-    type="video",
-    maxResults=20,
-  ).execute()
-
-  # Add each result to the appropriate list, and then display the lists of
-  # matching videos, channels, and playlists.
-  for search_result in search_response.get('items', []):
-    if search_result['id']['videoId'] == options.q:
-      return videoId(search_result['snippet']['title'], search_result['snippet']['thumbnails']['default']['url'])

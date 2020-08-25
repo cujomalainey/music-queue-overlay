@@ -15,7 +15,6 @@ from music_queue.oauth import build_credentials, is_logged_in
 
 API_SERVICE_NAME = 'sheets'
 API_VERSION = 'v4'
-YOUTUBE_DEVELOPER_KEY = os.environ['YOUTUBE_DEVELOPER_KEY']
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
@@ -114,13 +113,12 @@ def parse_links(values):
             # found in cache, add to list and continue
             if video.pickle:
                 print("cache hit")
+                results.append(video.pickle)
                 continue
             elif video.found_at >= yesterday_this_time:
                 print("empty hit")
-                continue
+                results.append(bad_placeholder())
             print("cache stale")
-
-
 
         # not found in cache, query api
         vid_info = fetch_video_api(vid_id)
@@ -193,8 +191,7 @@ def get_var_from_url(url):
 
 
 def youtube_search(vid_id):
-    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-        developerKey=YOUTUBE_DEVELOPER_KEY)
+    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, credentials=build_credentials())
 
     # Call the search.list method to retrieve results matching the specified
     # query term.

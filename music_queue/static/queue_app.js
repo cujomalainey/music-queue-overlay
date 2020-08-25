@@ -17,7 +17,7 @@ function trim_queue(data) {
 
 function build_elements(data) {
   t = document.createElement("li");
-  $(t).html(data);
+  $(t).html(data['title']);
   $(t).hide();
   return t;
 }
@@ -34,7 +34,7 @@ function insert_queue(value, index, array) {
   var remove_count = 0;
   for (i = index; i + remove_offset < l.length; i++) {
     var offset = remove_offset + i;
-    if ($(l[offset]).html() == value[0]) {
+    if ($(l[offset]).html() == value['title']) {
       found = true;
       break;
     } else {

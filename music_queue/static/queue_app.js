@@ -17,17 +17,15 @@ function trim_queue(data) {
 
 function build_elements(data) {
   li = document.createElement("li");
-  d = document.createElement("div");
-  h1 = document.createElement("h1");
+  h2 = document.createElement("h2");
   h3 = document.createElement("h3");
   img = document.createElement("img");
-  $(li).append(d);
-  $(d).append(img);
-  $(d).append(h1);
-  $(d).append(h3);
-  $(img).attr("src", data['thumbnails']['default']['url']);
+  $(li).append(img);
+  $(li).append(h2);
+  $(li).append(h3);
+  $(img).attr("src", data['thumbnails']['high']['url']);
   $(img).addClass("thumbnail");
-  $(h1).html(data['title']);
+  $(h2).html(data['title']);
   $(h3).html(data['channelTitle']);
   $(li).hide();
   return li;
@@ -45,7 +43,7 @@ function insert_queue(value, index, array) {
   var remove_count = 0;
   for (i = index; i + remove_offset < l.length; i++) {
     var offset = remove_offset + i;
-    if ($(l[offset]).find('h1').html() == value['title']) {
+    if ($(l[offset]).find('h2').html() == value['title']) {
       found = true;
       break;
     } else {
@@ -57,11 +55,15 @@ function insert_queue(value, index, array) {
     new_node = build_elements(value);
     $("#queue").append(new_node);
     $(new_node).slideDown();
-  }
-  if (index == 0) {
-    $(l[offset]).find("div").addClass("rainbow");
+    if (index == 0) {
+      $(new_node).addClass("rainbow");
+    }
   } else {
-    $(l[offset]).find("div").removeClass("rainbow");
+    if (index == 0) {
+      $(l[offset]).addClass("rainbow");
+    } else {
+      $(l[offset]).removeClass("rainbow");
+    }
   }
   remove_offset += remove_count;
 }

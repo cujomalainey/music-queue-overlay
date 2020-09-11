@@ -77,7 +77,6 @@ def music_queue():
 def queue_data():
     if 'sheet' not in session:
         return redirect(url_for('.index'))
-    print(session)
     service = build(API_SERVICE_NAME, API_VERSION, credentials=build_credentials())
     sheets = service.spreadsheets()
     result = sheets.values().get(spreadsheetId=session['sheet'],

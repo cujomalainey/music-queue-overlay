@@ -92,6 +92,9 @@ def queue_data():
     return jsonify({"total_queue_size":len(values),
                     "queue":values})
 
+@bp.route('/length', methods=('GET',))
+def queue_length():
+    pass
 
 def parse_links(values):
     results = []

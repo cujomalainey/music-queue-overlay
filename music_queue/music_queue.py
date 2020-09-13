@@ -7,6 +7,7 @@ from urllib.parse import urlparse, parse_qs
 from random import random
 from googleapiclient.discovery import build
 from datetime import datetime, timedelta
+from time import time
 
 from music_queue import db
 from music_queue.constants import *
@@ -77,6 +78,10 @@ def music_queue():
 def queue_data():
     if 'sheet' not in session:
         return redirect(url_for('.index'))
+    t = session.get('cache_time')
+    if t and time() - t <= 5:
+        return session['cache']
+
     service = build(API_SERVICE_NAME, API_VERSION, credentials=build_credentials())
     sheets = service.spreadsheets()
     result = sheets.values().get(spreadsheetId=session['sheet'],
@@ -88,12 +93,17 @@ def queue_data():
         values = values[:session['length']]
 
     values = parse_links(values)
-    return jsonify({"total_queue_size":len(values),
+    data = jsonify({"total_queue_size":len(values),
                     "queue":values})
+    session['cache'] = data
+    session['cache_time'] = time()
+    return data
 
 @bp.route('/length', methods=('GET',))
 def queue_length():
-    pass
+    if 'sheet' not in session:
+        return redirect(url_for('.index'))
+    return render_template('music_queue/length.html')
 
 def parse_links(values):
     results = []

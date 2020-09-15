@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for, session, jsonify, current_app
+    Blueprint, flash, redirect, render_template, request, url_for, session, jsonify, current_app, make_response
 )
 
 from googleapiclient.errors import HttpError
@@ -13,6 +13,8 @@ from music_queue import db
 from music_queue.constants import *
 from music_queue.models import YTVideo
 from music_queue.oauth import build_credentials, is_logged_in
+
+import json
 
 API_SERVICE_NAME = 'sheets'
 API_VERSION = 'v4'
@@ -80,7 +82,7 @@ def queue_data():
         return redirect(url_for('.index'))
     t = session.get('cache_time')
     if t and time() - t <= 5:
-        return session['cache']
+        return jsonify(session['cache'], 200)
 
     service = build(API_SERVICE_NAME, API_VERSION, credentials=build_credentials())
     sheets = service.spreadsheets()
@@ -95,7 +97,7 @@ def queue_data():
     values = parse_links(values)
     data = jsonify({"total_queue_size":len(values),
                     "queue":values})
-    session['cache'] = data
+    session['cache'] = values
     session['cache_time'] = time()
     return data
 

@@ -8,6 +8,7 @@ from random import random
 from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 from time import time
+import hashlib
 
 from music_queue import db
 from music_queue.constants import *
@@ -22,7 +23,6 @@ YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
 YOUTUBE_DOMAINS = ['youtu.be', 'www.youtube.com', 'youtube.com']
-
 
 bp = Blueprint('music_queue', __name__)
 
@@ -82,7 +82,12 @@ def queue_data():
         return redirect(url_for('.index'))
     t = session.get('cache_time')
     if t and time() - t <= 5:
-        return jsonify(session['cache'], 200)
+        if session['length'] > 0:
+            queue = session['cache'][:session['length']]
+        else:
+            queue = session['cache']
+        return jsonify({"queue":queue,
+                        "total_queue_size":len(session['cache'])})
 
     service = build(API_SERVICE_NAME, API_VERSION, credentials=build_credentials())
     sheets = service.spreadsheets()
@@ -118,7 +123,7 @@ def parse_links(values):
         if vid_id is None:
             print("bad parse")
             # return placeholder continue
-            results.append(bad_placeholder())
+            results.append(bad_placeholder(val))
             continue
 
         # check db for cache
@@ -132,27 +137,41 @@ def parse_links(values):
                 continue
             elif video.found_at >= yesterday_this_time:
                 print("empty hit")
-                results.append(bad_placeholder())
+                results.append(bad_placeholder(val))
             print("cache stale")
 
         # not found in cache, query api
         vid_info = fetch_video_api(vid_id)
         if vid_info:
             print("api hit")
-            # add to db and return result
-            pass
         else:
             print("api miss")
-            # add to db as unknown and return placeholder
-            pass
+            results.append(bad_placeholder(val))
+            continue
 
         cache_result(vid_id, vid_info)
         results.append(vid_info)
 
     return results
 
-def bad_placeholder():
-    return {"title": "this is not the video you are looking for"}
+def bad_placeholder(val):
+    h = hashlib.new("md5")
+    h.update(val.encode("utf-8"))
+    img_url = [
+        url_for("static", filename="VectorBRUH.png"),
+        url_for("static", filename="VectorLUL.png"),
+        url_for("static", filename="VectorNANI.png"),
+        url_for("static", filename="VectorRIP.png"),
+    ]
+    img_index = int(h.hexdigest(), 16) % len(img_url)
+    return {"title": "this is not the video you are looking for",
+            "channelTitle":"not Vector's",
+            "thumbnails": {
+                "high":{
+                    "url":img_url[img_index]
+                }
+            }
+            }
 
 def parse_url(url):
     # if not youtube then return domain

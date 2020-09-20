@@ -1,6 +1,6 @@
 function update_length() {
   $.getJSON( "/data", function( data ) {
-    $("#length").html(data.length);
+    $("#length").html(data.total_queue_size);
   });
 }
 

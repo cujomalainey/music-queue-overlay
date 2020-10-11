@@ -146,8 +146,8 @@ def parse_links(values):
             print("api hit")
         else:
             print("api miss")
-            results.append(bad_placeholder(val))
-            continue
+            vid_info = bad_placeholder(val)
+            results.append(vid_info)
 
         cache_result(vid_id, vid_info)
         results.append(vid_info)
@@ -229,16 +229,14 @@ def youtube_search(vid_id):
 
     # Call the search.list method to retrieve results matching the specified
     # query term.
-    search_response = youtube.search().list(
-        q=vid_id,
+    search_response = youtube.videos().list(
+        id=vid_id,
         part='id,snippet',
-        type="video",
-        maxResults=20,
     ).execute()
 
     # Add each result to the appropriate list, and then display the lists of
     # matching videos, channels, and playlists.
     for search_result in search_response.get('items', []):
-        if search_result['id']['videoId'] == vid_id:
+        if search_result['id'] == vid_id:
             return search_result['snippet']
     return None

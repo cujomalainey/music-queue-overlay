@@ -9,10 +9,11 @@ from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 from time import time
 import hashlib
+import json
 
 from music_queue import db
 from music_queue.constants import *
-from music_queue.models import YTVideo
+from music_queue.models import YTVideo, ResultCache
 from music_queue.oauth import build_credentials, is_logged_in
 
 import json
@@ -55,10 +56,22 @@ def validate_sheet(url):
 def register_queue():
     o = urlparse(request.form['sheet'])
     s = o.path.strip("/").split("/")
-    session['sheet'] = s[2]
+    sheet_id = s[2]
+    session['sheet'] = sheet_id
     session['length'] = int(request.form['length']) if request.form['length'] else 0
     session['show_total'] = 'show_total' in request.form
     # TODO trim db cache
+
+    cache = ResultCache.query.get(sheet_id)
+    if (cache):
+        db.session.delete(cache)
+
+    cache = ResultCache()
+    cache.id = session['sheet']
+    cache.pickle = "[]"
+    cache.cache_time = datetime.now() - timedelta(hours=1)
+    db.session.add(cache)
+    db.session.commit()
 
 @bp.route('/', methods=('GET', 'POST'))
 def index():
@@ -80,14 +93,14 @@ def music_queue():
 def queue_data():
     if 'sheet' not in session:
         return redirect(url_for('.index'))
-    t = session.get('cache_time')
-    if t and time() - t <= 5:
+    cache = ResultCache.query.get(session['sheet'])
+    if cache and datetime.now() - cache.cache_time <= timedelta(seconds=5):
+        full_queue = json.loads(cache.pickle)
+        queue = full_queue
         if session['length'] > 0:
-            queue = session['cache'][:session['length']]
-        else:
-            queue = session['cache']
+            queue = full_queue[:session['length']]
         return jsonify({"queue":queue,
-                        "total_queue_size":len(session['cache'])})
+                        "total_queue_size":len(full_queue)})
 
     service = build(API_SERVICE_NAME, API_VERSION, credentials=build_credentials())
     sheets = service.spreadsheets()
@@ -102,8 +115,9 @@ def queue_data():
     values = parse_links(values)
     data = jsonify({"total_queue_size":len(values),
                     "queue":values})
-    session['cache'] = values
-    session['cache_time'] = time()
+    cache.pickle = json.dumps(values)
+    cache.cache_time = datetime.now()
+    db.session.commit()
     return data
 
 @bp.route('/length', methods=('GET',))

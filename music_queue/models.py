@@ -10,6 +10,7 @@ class YTVideo(db.Model):
 
 class ResultCache(db.Model):
     id = db.Column(db.String(240), primary_key=True)
+    cache_time = db.Column(db.DateTime)
     pickle = db.Column(db.Text)
 
     def __repr__(self):

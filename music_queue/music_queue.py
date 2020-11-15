@@ -128,7 +128,10 @@ def queue_length():
 
 def parse_links(values):
     results = []
+    print(values)
     for val in values:
+        if not val:
+            continue
         # parse url to get id
         val = val[0]
         print(val)
